@@ -79,7 +79,10 @@ export type CustomerField = {
   id: string;
   name: string;
 };
-
+export type ImageField = {
+  url: string,
+  label: string,
+}
 export type InvoiceForm = {
   id: string;
   customer_id: string;

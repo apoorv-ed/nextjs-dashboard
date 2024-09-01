@@ -19,7 +19,17 @@ const FormSchema = z.object({
   }),
   date: z.string(),
 });
-
+const CustomerSchema = z.object({
+  name: z.string({
+    invalid_type_error: 'Please add a name.',
+  }),
+  email: z.string({
+    invalid_type_error: 'Please add a email',
+  }),
+  image: z.string({
+    invalid_type_error: 'Please add a image',
+  })
+})
 export type State = {
   errors?: {
     customerId?: string[];
@@ -28,7 +38,14 @@ export type State = {
   };
   message?: string | null;
 };
-
+export type CustomerState = {
+  errors?:{
+    name?: string[];
+    email?: string[];
+    image?: string[];
+  };
+  message?: string | null ;
+}
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
@@ -61,7 +78,7 @@ export async function updateInvoice(
     amount: formData.get('amount'),
     status: formData.get('status'),
   });
-  console.log(formData)
+ 
   if (!validatedFields.success) {
     return {
       errors: validatedFields.error.flatten().fieldErrors,
@@ -133,3 +150,39 @@ export async function deleteInvoice(id: string) {
       return { message: 'Database Error: Failed to Delete Invoice.' };
     }
   }
+
+
+export async function createCustomer(prevState: CustomerState, formData: FormData) {
+  const validatedFields = CustomerSchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    image: formData.get('image'),
+  });
+ 
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Missing Fields. Failed to Create Invoice.',
+    };
+  }
+ 
+  // Prepare data for insertion into the database
+  const { name, email, image } = validatedFields.data;
+  // Insert data into the database
+  try {
+    await sql`
+    INSERT INTO customers (name, email, image_url) 
+    VALUES (${name}, ${email}, ${image});
+  `;
+  } catch (error) {
+    // If a database error occurs, return a more specific error.
+    return {
+      message: 'Database Error: Failed to Create Customer.',
+    };
+  }
+ 
+  // Revalidate the cache for the invoices page and redirect the user.
+  revalidatePath('/dashboard/customers');
+  redirect('/dashboard/customers');
+}
