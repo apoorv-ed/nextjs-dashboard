@@ -215,3 +215,82 @@ export async function fetchFilteredCustomers(query: string) {
     throw new Error('Failed to fetch customer table.');
   }
 }
+
+export async function fetchCustomerByID(id: string){
+  try {
+    const data = await sql<CustomerField>`
+      SELECT
+        id,
+        name
+      FROM customers
+      WHERE id = ${id}
+      LIMIT 1
+    `;
+
+    const customer = data.rows[0];
+    if (!customer) {
+      throw new Error(`Customer with ID ${id} not found.`);
+    }
+
+    return customer;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error(`Failed to fetch customer with ID ${id}.`);
+  }
+}
+
+export async function fetchFilteredCustomersPaginated(query: string, currentPage: number,) {
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+  try {
+    const data = await sql<CustomersTableType>`
+    SELECT
+      customers.id,
+      customers.name,
+      customers.email,
+      customers.image_url,
+      COUNT(invoices.id) AS total_invoices,
+      SUM(CASE WHEN invoices.status = 'pending' THEN invoices.amount ELSE 0 END) AS total_pending,
+      SUM(CASE WHEN invoices.status = 'paid' THEN invoices.amount ELSE 0 END) AS total_paid
+    FROM customers
+    LEFT JOIN invoices ON customers.id = invoices.customer_id
+    WHERE
+      customers.name ILIKE ${`%${query}%`} OR
+        customers.email ILIKE ${`%${query}%`}
+    GROUP BY customers.id, customers.name, customers.email, customers.image_url
+    ORDER BY customers.name ASC
+    LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset};
+    `;
+ 
+    const customers = data.rows.map((customer) => ({
+      ...customer,
+      total_pending: formatCurrency(customer.total_pending),
+      total_paid: formatCurrency(customer.total_paid),
+    }));
+ 
+    return customers;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error('Failed to fetch customer table.');
+  }
+}
+
+export async function fetchFilteredCustomersPages(query: string) {
+  try {
+    const countData = await sql<{ count: number }>`
+    SELECT
+      COUNT(DISTINCT customers.id) AS count
+    FROM customers
+    LEFT JOIN invoices ON customers.id = invoices.customer_id
+    WHERE
+      customers.name ILIKE ${`%${query}%`} OR
+      customers.email ILIKE ${`%${query}%`};
+    `;
+    
+    const totalCount = countData.rows[0].count;
+    const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+    return totalPages;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error('Failed to fetch the total customer count.');
+  }
+}

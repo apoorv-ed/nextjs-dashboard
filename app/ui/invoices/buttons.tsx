@@ -14,10 +14,10 @@ export function CreateInvoice({href}:{href: string}) {
   );
 }
 
-export function UpdateInvoice({ id }: { id: string }) {
+export function UpdateInvoice({ href }: { href: string }) {
   return (
     <Link
-      href={`/dashboard/invoices/${id}/edit`}
+      href={href}
       className="rounded-md border p-2 hover:bg-gray-100"
     >
       <PencilIcon className="w-5" />

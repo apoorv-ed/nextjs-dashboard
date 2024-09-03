@@ -46,10 +46,17 @@ export type CustomerState = {
   };
   message?: string | null ;
 }
+export type EditCustomerState = {
+  errors?:{
+    name?: string[];
+  };
+  message?: string | null ;
+}
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 
 const UpdateInvoice = FormSchema.omit({ id: true, date: true });
- 
+const UpdateUser = CustomerSchema.omit({email: true, image: true})
+
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData,
@@ -186,3 +193,40 @@ export async function createCustomer(prevState: CustomerState, formData: FormDat
   revalidatePath('/dashboard/customers');
   redirect('/dashboard/customers');
 }
+
+export async function updateUser(
+    id: string,
+    prevState: EditCustomerState,
+    formData: FormData
+  ) {
+    console.log(formData);
+  
+    const validatedFields = UpdateUser.safeParse({
+      name: formData.get('name'),
+    });
+  
+    if (!validatedFields.success) {
+      console.log('failed')
+      return {
+        errors: validatedFields.error.flatten().fieldErrors,
+        message: 'Missing Fields. Failed to Update User.',
+      };
+    }
+  
+    // Extract the valid data
+    const { name } = validatedFields.data;
+  
+    try {
+      await sql`
+        UPDATE customers
+        SET name = ${name}
+        WHERE id = ${id}
+      `;
+    } catch (error) {
+      console.log(error);
+      return { message: 'Database Error: Failed to Update User Details.' };
+    }
+  
+    revalidatePath('/dashboard/customers');
+    redirect('/dashboard/customers');
+  }
